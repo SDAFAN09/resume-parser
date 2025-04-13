@@ -1,0 +1,66 @@
+from flask import Flask, render_template, request
+import PyPDF2
+import docx
+import re
+import io
+
+app = Flask(__name__, static_folder='static')
+
+# -----------------------------
+# Resume Parsing Helper Functions
+# -----------------------------
+
+def extract_text_from_docx(docx_file):
+    doc = docx.Document(docx_file)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+def extract_text_from_pdf(pdf_file):
+    pdf_file_stream = io.BytesIO(pdf_file.read())  # Convert file to binary stream
+    reader = PyPDF2.PdfReader(pdf_file_stream)
+    return "".join(page.extract_text() or "" for page in reader.pages)
+
+def extract_resume_data(file):
+    filename = file.filename.lower()
+    if filename.endswith(".pdf"):
+        text = extract_text_from_pdf(file)
+    elif filename.endswith(".docx"):
+        text = extract_text_from_docx(file)
+    else:
+        return {"Name": "Unsupported file format", "Email": "", "Skills": []}
+
+    # Very basic parsing (can be improved)
+    name = re.search(r"Name[:\-]?\s*(.*)", text, re.IGNORECASE)
+    email = re.search(r"[\w\.-]+@[\w\.-]+", text)
+    skills = re.findall(r"(Python|Java|C\+\+|HTML|CSS|JavaScript|SQL)", text, re.IGNORECASE)
+
+    return {
+        "Name": name.group(1).strip() if name else "Not Found",
+        "Email": email.group(0) if email else "Not Found",
+        "Skills": list(set([s.capitalize() for s in skills]))
+    }
+
+# -----------------------------
+# Routes
+# -----------------------------
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template("indexx.html", data=None)
+
+@app.route("/process", methods=["POST"])
+def process():
+    if "pdf_doc" not in request.files:
+        return "No file uploaded", 400
+
+    uploaded_file = request.files ["pdf_doc"]
+    if uploaded_file.filename == "":
+        return "No selected file", 400
+
+    data = extract_resume_data(uploaded_file)
+    return render_template("indexx.html", data=data)
+
+# -----------------------------
+# Run the App
+# -----------------------------
+if __name__ == "__main__":
+    app.run(debug=True)

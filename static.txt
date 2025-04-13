@@ -1,0 +1,8 @@
+
+resume_parser/
+
+├── app.py
+├── templates/
+│   └── indexx.html
+├── static/
+│   └── affan.png
